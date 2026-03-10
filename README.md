@@ -14,9 +14,9 @@ The system is designed to handle real-time attitude estimation and stabilization
 
 ## 🛠 Tech Stack
 - **Language:** C/C++ (Object-Oriented Programming)
-- **Frameworks/Tools:** STM32CubeIDE / VS Code (PlatformIO), ESP-IDF.
-- **Hardware:** ESP32-C3 / STM32F4, MPU6500 IMU, RC Receiver (SBUS).
-- **Design:** KiCad (PCB Design), Autodesk Fusion 360 (Frame & Mechanical joints).
+- **Frameworks/Tools:** ArduinoIDE.
+- **Hardware:** ESP32-C3, MPU6500 IMU, RC Receiver (SBUS), Motor 8520.
+- **Design:** Autodesk Fusion 360 (Frame & Mechanical joints).
 
 ## 📈 Current Status: [In-Progress / Researching]
 - [x] Hardware Schematic & PCB Design.
