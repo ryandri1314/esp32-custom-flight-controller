@@ -19,7 +19,9 @@ const uint8_t resolution = 10;
 const uint16_t freq = 16000;
 
 static float ax_f = 0, ay_f = 0, az_f = 0;
-float fc = 75.0f;
+static float gx_f = 0, gy_f = 0, gz_f = 0;
+float fc_accel = 75.0f;
+float fc_gyro = 100.0f;
 uint64_t loop_count = 0;
 float throttle = 0.0f;
 float pwm_vals[4] = {0};
@@ -30,6 +32,12 @@ void IRAM_ATTR control_callback(void* arg) {
 
 esp_timer_handle_t control_timer;
 uint32_t prev_cycle = 0;
+
+void writeMotor(float* pwm_vals) {
+  for (uint8_t i = 0; i < 4; ++i) {
+    ledcWrite(motor_pin[i], pwm_vals[i]);
+  }
+}
 
 void mixing_pwm(float throttle, float roll, float pitch, float yaw, float* pwm_vals) {
   pwm_vals[0] = (throttle + roll - pitch + yaw);
@@ -60,10 +68,7 @@ void mixing_pwm(float throttle, float roll, float pitch, float yaw, float* pwm_v
     pwm_vals[i] *= max_duty_cycle;
   }
 
-  ledcWrite(motor_pin[0], pwm_vals[0]);
-  ledcWrite(motor_pin[1], pwm_vals[1]);
-  ledcWrite(motor_pin[2], pwm_vals[2]);
-  ledcWrite(motor_pin[3], pwm_vals[3]);
+  writeMotor(pwm_vals);
 }
 
 float dt_loop;
@@ -260,11 +265,17 @@ void loop() {
     // Serial.print(gz);
     // Serial.println();
 
-    float alpha = (2.0f * PI * fc * dt_loop) / (1.0f + 2.0f * PI * fc * dt_loop);
+    float alpha_a = (2.0f * PI * fc_accel * dt_loop) / (1.0f + 2.0f * PI * fc_accel * dt_loop);
 
-    ax_f += alpha * (ax - ax_f);
-    ay_f += alpha * (ay - ay_f);
-    az_f += alpha * (az - az_f);
+    ax_f += alpha_a * (ax - ax_f);
+    ay_f += alpha_a * (ay - ay_f);
+    az_f += alpha_a * (az - az_f);
+
+    float alpha_g = (2.0f * PI * fc_gyro * dt_loop) / (1.0f + 2.0f * PI * fc_gyro * dt_loop);
+
+    gx_f += alpha_g * (gx - gx_f);
+    gy_f += alpha_g * (gy - gy_f);
+    gz_f += alpha_g * (gz - gz_f);
 
     mahonyUpdate(gx, gy, gz, ax_f, ay_f, az_f, dt_loop);
     angles = getEulerAngles();
@@ -280,7 +291,7 @@ void loop() {
         PID_angle(receiver[0], receiver[1], receiver[3], angles.roll, -angles.pitch, angles.yaw);
       }
 
-      PID_rate(target_roll_rate, target_pitch_rate, target_yaw_rate, gx, gy, -gz, dt_loop);
+      PID_rate(target_roll_rate, target_pitch_rate, target_yaw_rate, gx_f, gy_f, -gz_f, dt_loop);
 
       float roll_cmd  = PID_roll_rate  / MAX_ROLL_RATE;
       float pitch_cmd = PID_pitch_rate / MAX_PITCH_RATE;
@@ -295,6 +306,8 @@ void loop() {
       for (uint8_t i = 0; i < 4; ++i) {
         pwm_vals[i] = 0;
       }
+
+      writeMotor(pwm_vals);
     }
 
     for (uint8_t i = 0; i < 4; i++) {
