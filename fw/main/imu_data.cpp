@@ -20,8 +20,8 @@ void Imu_Data::get_accel(float *ax, float *ay, float *az) const {
 
 void Imu_Data::get_gyro(float *gx, float *gy, float *gz) const {
   *gx = this->_gyro._gyro_x * 0.01745329251f;
-  *gy = this->_gyro._gyro_y * 0.01745329251f;
-  *gz = this->_gyro._gyro_z * 0.01745329251f;
+  *gy = -this->_gyro._gyro_y * 0.01745329251f;
+  *gz = -this->_gyro._gyro_z * 0.01745329251f;
 }
 
 void Imu_Data::get_tempurature(float *tempurature) const {

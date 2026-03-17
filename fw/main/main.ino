@@ -1,3 +1,7 @@
+/*  Flight Control 
+Name: ThePagan V1.0
+Author: Duong (Uri) Nguyen
+*/
 #include "baro_data.h"
 #include "rx_data.h"
 #include "imu_data.h"
@@ -40,10 +44,10 @@ void writeMotor(float* pwm_vals) {
 }
 
 void mixing_pwm(float throttle, float roll, float pitch, float yaw, float* pwm_vals) {
-  pwm_vals[0] = (throttle + roll - pitch + yaw);
-  pwm_vals[1] = (throttle - roll - pitch - yaw);
-  pwm_vals[2] = (throttle - roll + pitch + yaw);
-  pwm_vals[3] = (throttle + roll + pitch - yaw);
+  pwm_vals[0] = (throttle + roll + pitch - yaw);
+  pwm_vals[1] = (throttle - roll + pitch + yaw);
+  pwm_vals[2] = (throttle - roll - pitch - yaw);
+  pwm_vals[3] = (throttle + roll - pitch + yaw);
 
   float min_pwm = pwm_vals[0];
   float max_pwm = pwm_vals[0];
@@ -93,16 +97,16 @@ float target_pitch_rate = 0.0f;
 float target_roll_rate = 0.0f;
 float target_yaw_rate = 0.0f;
 
-const float Kp_pitch_rate = 0.5f;
+const float Kp_pitch_rate = 0.7f;
 const float Ki_pitch_rate = 0.0f;
 const float Kd_pitch_rate = 0.0f;
 
-const float Kp_roll_rate = 0.5f;
+const float Kp_roll_rate = 0.7f;
 const float Ki_roll_rate = 0.0f;
 const float Kd_roll_rate = 0.0f;
 
-const float Kp_yaw_rate = 0.2f;
-const float Ki_yaw_rate = 0.0f;
+const float Kp_yaw_rate = 1.0f;
+const float Ki_yaw_rate = 0.002f;
 const float Kd_yaw_rate = 0.0f;
 
 float error_pitch_rate = 0.0f;
@@ -137,7 +141,7 @@ float d_roll_f = 0.0f, d_pitch_f = 0.0f, d_yaw_f = 0.0f;
 
 void PID_angle(uint16_t roll_sticks, uint16_t pitch_sticks, uint16_t yaw_sticks, float roll, float pitch, float yaw) {
   // Pitch
-  float pitch_input = (pitch_sticks - 1500) / 500.0f;
+  float pitch_input = -(pitch_sticks - 1500) / 500.0f;
   target_pitch_angle = pitch_input * MAX_PITCH_ANGLE;
   error_pitch_angle = target_pitch_angle - pitch;
   target_pitch_rate = Kp_pitch_angle * error_pitch_angle * 0.01745329251f;
@@ -149,7 +153,10 @@ void PID_angle(uint16_t roll_sticks, uint16_t pitch_sticks, uint16_t yaw_sticks,
   target_roll_rate = Kp_roll_angle * error_roll_angle * 0.01745329251f;
 
   // Yaw
-  float yaw_input = (yaw_sticks - 1500) / 500.0f;
+  float yaw_input = 0.0f;
+  if (abs(yaw_sticks - 1500) < 70) {
+    yaw_input = 0;
+  } else yaw_input = (yaw_sticks - 1500) / 500.0f;
   target_yaw_rate = yaw_input * MAX_YAW_RATE;
 }
 
@@ -178,6 +185,7 @@ void PID_rate(float target_roll_rate, float target_pitch_rate, float target_yaw_
   d_pitch_f += alpha * (d_pitch - d_pitch_f);
   PID_pitch_rate = (Kp_pitch_rate * error_pitch_rate) + (Ki_pitch_rate * error_pitch_rate_sum) + (Kd_pitch_rate * d_pitch_f);
   PID_pitch_rate = constrain(PID_pitch_rate, -MAX_PITCH_RATE, MAX_PITCH_RATE);
+  // PID_pitch_rate = -PID_pitch_rate;
   error_pitch_rate_last = error_pitch_rate;
 
   // Yaw
@@ -251,19 +259,7 @@ void loop() {
     imu_data.get_accel(&ax, &ay, &az);
     imu_data.get_gyro(&gx, &gy, &gz);
 
-    // Serial.print("ax: ");
-    // Serial.print(ax);
-    // Serial.print("\tay: ");
-    // Serial.print(ay);
-    // Serial.print("\taz: ");
-    // Serial.print(az);
-    // Serial.print("\tgx: ");
-    // Serial.print(gx);
-    // Serial.print("\tgy: ");
-    // Serial.print(gy);
-    // Serial.print("\tgz: ");
-    // Serial.print(gz);
-    // Serial.println();
+    
 
     float alpha_a = (2.0f * PI * fc_accel * dt_loop) / (1.0f + 2.0f * PI * fc_accel * dt_loop);
 
@@ -285,13 +281,26 @@ void loop() {
     // Serial.println(angles.pitch);
     // Serial.print("\tYaw = ");
     // Serial.println(angles.yaw);
+    // Serial.print("ax: ");
+    // Serial.print(ax_f);
+    // Serial.print("\tay: ");
+    // Serial.print(ay_f);
+    // Serial.print("\taz: ");
+    // Serial.print(az_f);
+    // Serial.print("\tgx: ");
+    // Serial.print(gx_f);
+    // Serial.print("\tgy: ");
+    // Serial.print(gy_f);
+    // Serial.print("\tgz: ");
+    // Serial.print(gz_f);
+    // Serial.println();
 
     if (arm_flag) {
       if (loop_count % 2 == 0) {
-        PID_angle(receiver[0], receiver[1], receiver[3], angles.roll, -angles.pitch, angles.yaw);
+        PID_angle(receiver[0], receiver[1], receiver[3], angles.roll, angles.pitch, angles.yaw);
       }
 
-      PID_rate(target_roll_rate, target_pitch_rate, target_yaw_rate, gx_f, gy_f, -gz_f, dt_loop);
+      PID_rate(target_roll_rate, target_pitch_rate, target_yaw_rate, gx_f, gy_f, gz_f, dt_loop);
 
       float roll_cmd  = PID_roll_rate  / MAX_ROLL_RATE;
       float pitch_cmd = PID_pitch_rate / MAX_PITCH_RATE;
